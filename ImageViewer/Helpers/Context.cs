@@ -577,6 +577,9 @@ internal class Context
         bitmapImage.SetSource(CurrentImage.GetBitmapImageSource());
 
         MainWindow.ImageView.Source = bitmapImage;
+        // 画像が開かれたら、ピクセル補間モードを設定する
+        Visual visual = ElementCompositionPreview.GetElementVisual(MainWindow.ImageView);
+        visual.ScaleInterpolationMode = CompositionScalingInterpolationMode.NearestNeighbor;
     }
 
     /// <summary>
