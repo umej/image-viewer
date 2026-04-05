@@ -291,6 +291,28 @@ public sealed partial class MainWindow : Window
         {
             ImageContainer.SetCursor(new CoreCursor(CoreCursorType.Arrow, 0));
         }
+
+    // 1. ImageView を基準とした座標を取得する
+    // これにより、ズーム倍率に関係なく「画像上の位置」が取得できる
+    var pointerPoint = e.GetCurrentPoint(ImageView);
+    var pos = pointerPoint.Position;
+
+    // 2. 画像の元のサイズ（ピクセル数）を取得
+    if (ImageView.Source is BitmapImage bitmap)
+    {
+        // 3. 座標を整数に丸める（これが画素のインデックスになる）
+        int pixelX = (int)pos.X;
+        int pixelY = (int)pos.Y;
+
+        // 4. 画像の範囲内かチェック（枠外を指している可能性があるため）
+        if (pixelX >= 0 && pixelX < bitmap.PixelWidth &&
+            pixelY >= 0 && pixelY < bitmap.PixelHeight)
+        {
+            // ここで画素の位置が確定！
+            // 例: ステータスバーなどに表示する
+            System.Diagnostics.Debug.WriteLine($"画素位置: X={pixelX}, Y={pixelY}");
+        }
+    }
     }
 
     private void ScrollView_PointerExited(object sender, PointerRoutedEventArgs e)
