@@ -1,12 +1,12 @@
 <Window x:Class="ImageViewer.Dialogs.RawImageLoadDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="RAW画像を読み込む" 
-        Height="350" 
+        Title="RAW画像を読み込む" >
+        <!--Height="350" 
         Width="500"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"-->
     <Grid Background="#F5F5F5">
         <StackPanel Margin="20" VerticalAlignment="Stretch">
             
@@ -61,17 +61,17 @@
             <TextBlock Text="ビット深度 (Bit Depth):" FontWeight="Bold" Margin="0,0,0,5"/>
             <ComboBox x:Name="BitDepthComboBox" 
                       Padding="8" 
-                      Margin="0,0,0,15"
-                      IsReadOnly="True"/>
+                      Margin="0,0,0,15"/>
+            <!--IsReadOnly="True"-->
 
             <!-- Bayer配列パターン選択エリア -->
             <TextBlock Text="Bayer配列パターン:" FontWeight="Bold" Margin="0,0,0,5"/>
             <ComboBox x:Name="BayerPatternComboBox" 
                       Padding="8" 
-                      Margin="0,0,0,20"
-                      IsReadOnly="True"/>
+                      Margin="0,0,0,20"/>
+            <!--IsReadOnly="True"-->
 
-            <!-- ボタンエリア -->
+                <!-- ボタンエリア -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

@@ -280,7 +280,7 @@ internal class Context
                 CurrentImage = null;
 
                 MainWindow.UpdateTitle();
-                MainWindow.ImageView.Opacity = 0;
+                //MainWindow.ImageView.Opacity = 0;
                 MainWindow.SplitViewContainer.IsPaneOpen = false;
             }
 
@@ -304,7 +304,7 @@ internal class Context
         }
 
         MainWindow.ImageLoadingIndicator.IsActive = status;
-        MainWindow.ImageView.Opacity = status ? 0 : 1;
+        //MainWindow.ImageView.Opacity = status ? 0 : 1;
 
         UpdateButtonsAccessiblity();
     }
@@ -326,8 +326,10 @@ internal class Context
 
         float zoomFactor = GetAdjustedZoomFactor();
 
-        MainWindow.ScrollView.ChangeView(0, 0, zoomFactor, true);
-        MainWindow.ScrollView.ZoomToFactor(zoomFactor);
+        MainWindow.SetZoomFactor(zoomFactor);
+        MainWindow.SetOffset(0, 0);
+        //MainWindow.ScrollView.ChangeView(0, 0, zoomFactor, true);
+        //MainWindow.ScrollView.ZoomToFactor(zoomFactor);
     }
 
     /// <summary>
@@ -355,7 +357,9 @@ internal class Context
     /// </summary>
     public void Zoom(double factor)
     {
-        MainWindow.ScrollView.ZoomToFactor(RoundToTen((MainWindow.ScrollView.ZoomFactor + factor) * 100) / 100);
+        float zoom = MainWindow.GetZoomFactor();
+        MainWindow.SetZoomFactor(RoundToTen((zoom + factor) * 100) / 100);
+        //MainWindow.ScrollView.ZoomToFactor(RoundToTen((MainWindow.ScrollView.ZoomFactor + factor) * 100) / 100);
     }
 
     /// <summary>
@@ -486,7 +490,7 @@ internal class Context
         MainWindow.ImageCropper.Source = null;
 
         UpdateButtonsAccessiblity();
-        MainWindow.ScrollView.Focus(FocusState.Programmatic);
+        //MainWindow.ScrollView.Focus(FocusState.Programmatic);
     }
 
     /// <summary>
@@ -576,10 +580,8 @@ internal class Context
         bitmapImage.ImageFailed += ImageView_ImageFailed;
         bitmapImage.SetSource(CurrentImage.GetBitmapImageSource());
 
-        MainWindow.ImageView.Source = bitmapImage;
-        // 画像が開かれたら、ピクセル補間モードを設定する
-        Visual visual = ElementCompositionPreview.GetElementVisual(MainWindow.ImageView);
-        visual.ScaleInterpolationMode = CompositionScalingInterpolationMode.NearestNeighbor;
+        MainWindow.SetBitmapStream(CurrentImage.GetBitmapImageSource());
+        MainWindow.RedrawView();
     }
 
     /// <summary>

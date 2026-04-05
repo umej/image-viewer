@@ -1,23 +1,21 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Drawing.Imaging;
-using System.Threading;
-
-using Windows.Storage.Streams;
-
+using ImageViewer.Utilities;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Tga;
+using SixLabors.ImageSharp.PixelFormats;
 using Svg;
-
-using ImageSharpImage = SixLabors.ImageSharp.Image;
+using System;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using Windows.Storage.Streams;
+using WinRT;
 using DrawingImage = System.Drawing.Bitmap;
-
-using ImageViewer.Utilities;
+using ImageSharpImage = SixLabors.ImageSharp.Image;
 
 namespace ImageViewer.Wrapper;
 
@@ -145,38 +143,41 @@ internal partial class Image
     private PixelValues GetNormalPixelValues(int x, int y)
     {
         var frame = WorkingImage.Frames[0];
-        var pixelType = frame.PixelType;
+        var pixelType = frame.GetType().GenericTypeArguments[0];
 
         var result = new PixelValues();
 
-        // ピクセル型に応じて値を取得
-        if(pixelType.Name == "Rgba32")
+        if (pixelType == typeof(SixLabors.ImageSharp.PixelFormats.Rgba32))
         {
-            var pixel = frame.PixelBuffer.GetPixelReference<SixLabors.ImageSharp.PixelFormats.Rgba32>(x, y);
+            Image<Rgba32> img = (Image<Rgba32>)WorkingImage;
+            var pixel = img[x, y];
             result.R = pixel.R;
             result.G = pixel.G;
             result.B = pixel.B;
             result.A = pixel.A;
         }
-        else if(pixelType.Name == "Rgb24")
+        else if (pixelType == typeof(SixLabors.ImageSharp.PixelFormats.Rgb24))
         {
-            var pixel = frame.PixelBuffer.GetPixelReference<SixLabors.ImageSharp.PixelFormats.Rgb24>(x, y);
+            Image<Rgb24> img = (Image<Rgb24>)WorkingImage;
+            var pixel = img[x, y];
             result.R = pixel.R;
             result.G = pixel.G;
             result.B = pixel.B;
             result.A = 255;
         }
-        else if(pixelType.Name == "Gray8")
+        else if (pixelType == typeof(SixLabors.ImageSharp.PixelFormats.L8))
         {
-            var pixel = frame.PixelBuffer.GetPixelReference<SixLabors.ImageSharp.PixelFormats.L8>(x, y);
+            Image<L8> img = (Image<L8>)WorkingImage;
+            var pixel = img[x, y];
             result.R = pixel.PackedValue;
             result.G = pixel.PackedValue;
             result.B = pixel.PackedValue;
             result.A = 255;
         }
-        else if(pixelType.Name == "Gray16")
+        else if (pixelType == typeof(SixLabors.ImageSharp.PixelFormats.L16))
         {
-            var pixel = frame.PixelBuffer.GetPixelReference<SixLabors.ImageSharp.PixelFormats.L16>(x, y);
+            Image<L16> img = (Image<L16>)WorkingImage;
+            var pixel = img[x, y];
             result.R = pixel.PackedValue;
             result.G = pixel.PackedValue;
             result.B = pixel.PackedValue;
@@ -201,7 +202,7 @@ internal partial class Image
 
         // ビット深度に基づいてスケーリング
         ushort maxValue = RawConfig.BitDepth == 16 ? (ushort)65535 : (ushort)255;
-        ushort scaledValue = (ushort)((bayerValue * 65535) / maxValue);
+        byte scaledValue = (byte)((bayerValue * 65535) / maxValue);
 
         // Bayer配列パターンに基づいてR/G/Bに割り当て
         bool isEvenX = (x % 2) == 0;
@@ -421,10 +422,10 @@ internal partial class Image
     private void ConvertBayerToImage()
     {
         // RGB画像として作成（ピクセル値は正規化）
-        WorkingImage = new ImageSharpImage(SixLabors.ImageSharp.PixelFormats.Rgb24.Instance, RawConfig.Width, RawConfig.Height);
+        WorkingImage = new Image<SixLabors.ImageSharp.PixelFormats.Rgb24>(RawConfig.Width, RawConfig.Height);
 
         ushort maxValue = RawConfig.BitDepth == 16 ? (ushort)65535 : (ushort)255;
-        var pixelAccessor = WorkingImage.Frames[0];
+        Image<Rgb24> pixelAccessor = (Image<Rgb24>)WorkingImage;
 
         for(int y = 0; y < RawConfig.Height; y++)
         {

@@ -1,36 +1,50 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.Linq;
+﻿using ImageViewer.Controls;
+using ImageViewer.Helpers;
+using ImageViewer.Views;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI;
 using Microsoft.UI.Input;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Windowing;
-
-using Windows.UI.Core;
-using Windows.Foundation;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Processing;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using WinRT.Interop;
-using SixLabors.ImageSharp.Processing;
-
-using ImageViewer.Helpers;
-using ImageViewer.Controls;
-using ImageViewer.Views;
 
 namespace ImageViewer;
 
 public sealed partial class MainWindow : Window
 {
-    private Point LastMousePoint;
-    private bool ScrollViewMouseDrag;
+    private Windows.Foundation.Point LastMousePoint;
+    private bool ScrollViewMouseDrag = false;
+    private CanvasBitmap _bitmap;
+    private float Zoom = 1.0f;
+    private int OffsetX = 0;
+    private int OffsetY = 0;
+
+    public void SetBitmapStream(IRandomAccessStream ras)
+    {
+        ras.Seek(0); // 先頭に戻す
+        _bitmap = CanvasBitmap.LoadAsync(ImageView, ras).AsTask().Result;
+    }
+
     public readonly Dictionary<string, string>CropperAspectRatios = new()
     {
         {Culture.GetString("TRANSFORM_CROP_FREE"), "free"},
@@ -147,7 +161,7 @@ public sealed partial class MainWindow : Window
 
     private void ButtonFullsize_Click(object sender, RoutedEventArgs e)
     {
-        ScrollView.ChangeView(0, 0, 1);
+        //ScrollView.ChangeView(0, 0, 1);
     }
 
     private void ButtonAdjust_Click(object sender, RoutedEventArgs e)
@@ -213,13 +227,13 @@ public sealed partial class MainWindow : Window
     private void ButtonFileInfo_Click(object sender, RoutedEventArgs e)
     {
         SplitViewContainer.IsPaneOpen = true;
-        ScrollView.Focus(FocusState.Programmatic);
+        //ScrollView.Focus(FocusState.Programmatic);
     }
 
     private void ButtonFileInfoClose_Click(object sender, RoutedEventArgs e)
     {
         SplitViewContainer.IsPaneOpen = false;
-        ScrollView.Focus(FocusState.Programmatic);
+        //ScrollView.Focus(FocusState.Programmatic);
     }
 
     private void ButtonImageCrop_Click(object sender, RoutedEventArgs e)
@@ -271,50 +285,51 @@ public sealed partial class MainWindow : Window
         Run firstItem = (Run)hyperlinkControl.Inlines[0];
         Process.Start("explorer.exe", firstItem.Text);
     }
-
-    private void ScrollView_PointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        if(Context.Instance().HasImageLoaded() && ScrollViewMouseDrag)
+    /*
+        private void ScrollView_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
-            ImageContainer.SetCursor(new CoreCursor(CoreCursorType.Hand, 0));
-            PointerPoint point = e.GetCurrentPoint(ScrollView);
+            if(Context.Instance().HasImageLoaded() && ScrollViewMouseDrag)
+            {
+                ImageContainer.SetCursor(new CoreCursor(CoreCursorType.Hand, 0));
+                //PointerPoint point = e.GetCurrentPoint(ScrollView);
 
-            double deltaX = point.Position.X - LastMousePoint.X;
-            double deltaY = point.Position.Y - LastMousePoint.Y;
+                //double deltaX = point.Position.X - LastMousePoint.X;
+                //double deltaY = point.Position.Y - LastMousePoint.Y;
 
-            ScrollView.ScrollToHorizontalOffset(ScrollView.HorizontalOffset - deltaX);
-            ScrollView.ScrollToVerticalOffset(ScrollView.VerticalOffset - deltaY);
+                //ScrollView.ScrollToHorizontalOffset(ScrollView.HorizontalOffset - deltaX);
+                //ScrollView.ScrollToVerticalOffset(ScrollView.VerticalOffset - deltaY);
 
-            LastMousePoint = point.Position;
-        }
-        else
+                //LastMousePoint = point.Position;
+            }
+            else
+            {
+                ImageContainer.SetCursor(new CoreCursor(CoreCursorType.Arrow, 0));
+            }
+
+        // 1. ImageView を基準とした座標を取得する
+        // これにより、ズーム倍率に関係なく「画像上の位置」が取得できる
+        var pointerPoint = e.GetCurrentPoint(ImageView);
+        var pos = pointerPoint.Position;
+
+        // 2. 画像の元のサイズ（ピクセル数）を取得
+        if (_bitmap is CanvasBitmap bitmap)
         {
-            ImageContainer.SetCursor(new CoreCursor(CoreCursorType.Arrow, 0));
+            // 3. 座標を整数に丸める（これが画素のインデックスになる）
+            int pixelX = (int)pos.X;
+            int pixelY = (int)pos.Y;
+
+            // 4. 画像の範囲内かチェック（枠外を指している可能性があるため）
+            if (pixelX >= 0 && pixelX < bitmap.Size.Width &&
+                pixelY >= 0 && pixelY < bitmap.Size.Height)
+            {
+                // ここで画素の位置が確定！
+                // 例: ステータスバーなどに表示する
+                System.Diagnostics.Debug.WriteLine($"画素位置: X={pixelX}, Y={pixelY}");
+            }
         }
-
-    // 1. ImageView を基準とした座標を取得する
-    // これにより、ズーム倍率に関係なく「画像上の位置」が取得できる
-    var pointerPoint = e.GetCurrentPoint(ImageView);
-    var pos = pointerPoint.Position;
-
-    // 2. 画像の元のサイズ（ピクセル数）を取得
-    if (ImageView.Source is BitmapImage bitmap)
-    {
-        // 3. 座標を整数に丸める（これが画素のインデックスになる）
-        int pixelX = (int)pos.X;
-        int pixelY = (int)pos.Y;
-
-        // 4. 画像の範囲内かチェック（枠外を指している可能性があるため）
-        if (pixelX >= 0 && pixelX < bitmap.PixelWidth &&
-            pixelY >= 0 && pixelY < bitmap.PixelHeight)
-        {
-            // ここで画素の位置が確定！
-            // 例: ステータスバーなどに表示する
-            System.Diagnostics.Debug.WriteLine($"画素位置: X={pixelX}, Y={pixelY}");
         }
-    }
-    }
-
+    */
+    /*    
     private void ScrollView_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         ImageContainer.SetCursor(new CoreCursor(CoreCursorType.Arrow, 0));
@@ -322,48 +337,74 @@ public sealed partial class MainWindow : Window
 
         VirtualKeyboard.ControlRelease();
     }
+        private void ScrollView_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            PointerPoint point = e.GetCurrentPoint(ScrollView);
 
-    private void ScrollView_PointerPressed(object sender, PointerRoutedEventArgs e)
+            if(point.Properties.IsLeftButtonPressed)
+            {
+                ScrollViewMouseDrag = true;
+                LastMousePoint = point.Position;
+            }
+            else if(point.Properties.IsXButton1Pressed)
+            {
+                Context.Instance().LoadPrevImage();
+            }
+            else if(point.Properties.IsXButton2Pressed)
+            {
+                Context.Instance().LoadNextImage();
+            }
+        }
+
+        private void ScrollView_PointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+            ScrollViewMouseDrag = false;
+        }
+
+        private void ScrollView_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+        {
+            if(!VirtualKeyboard.ControlPressed())
+            {
+                VirtualKeyboard.ControlPress();
+            }
+        }
+    */
+    /*    private void ScrollView_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
+        {
+            TextBlockZoomFactor.Text = string.Concat(Math.Round(ScrollView.ZoomFactor * 100).ToString(CultureInfo.InvariantCulture), "%");
+
+            if(e.IsIntermediate) return;
+
+            VirtualKeyboard.ControlRelease();
+
+            if(ScrollView.ZoomFactor == Context.Instance().GetAdjustedZoomFactor())
+            {
+                ButtonImageAdjust.Visibility = Visibility.Collapsed;
+                ButtonImageAdjust.IsEnabled = false;
+                ButtonImageZoomFull.Visibility = Visibility.Visible;
+                ButtonImageZoomFull.IsEnabled = true;
+            }
+            else
+            {
+                ButtonImageAdjust.Visibility = Visibility.Visible;
+                ButtonImageAdjust.IsEnabled = true;
+                ButtonImageZoomFull.Visibility = Visibility.Collapsed;
+                ButtonImageZoomFull.IsEnabled = false;
+            }
+        }
+    */
+    public float GetZoomFactor()
     {
-        PointerPoint point = e.GetCurrentPoint(ScrollView);
-
-        if(point.Properties.IsLeftButtonPressed)
-        {
-            ScrollViewMouseDrag = true;
-            LastMousePoint = point.Position;
-        }
-        else if(point.Properties.IsXButton1Pressed)
-        {
-            Context.Instance().LoadPrevImage();
-        }
-        else if(point.Properties.IsXButton2Pressed)
-        {
-            Context.Instance().LoadNextImage();
-        }
+        return Zoom;
     }
-
-    private void ScrollView_PointerReleased(object sender, PointerRoutedEventArgs e)
+    public void SetZoomFactor(float zoom)
     {
-        ScrollViewMouseDrag = false;
-    }
+        if (zoom < 0.1f) zoom = 0.1f;
+        Zoom = zoom;
+        TextBlockZoomFactor.Text = string.Concat(Math.Round(Zoom * 100).ToString(CultureInfo.InvariantCulture), "%");
+        ImageView.Invalidate();
 
-    private void ScrollView_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
-    {
-        if(!VirtualKeyboard.ControlPressed())
-        {
-            VirtualKeyboard.ControlPress();
-        }
-    }
-
-    private void ScrollView_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
-    {
-        TextBlockZoomFactor.Text = string.Concat(Math.Round(ScrollView.ZoomFactor * 100).ToString(CultureInfo.InvariantCulture), "%");
-
-        if(e.IsIntermediate) return;
-
-        VirtualKeyboard.ControlRelease();
-
-        if(ScrollView.ZoomFactor == Context.Instance().GetAdjustedZoomFactor())
+        if (Zoom == Context.Instance().GetAdjustedZoomFactor())
         {
             ButtonImageAdjust.Visibility = Visibility.Collapsed;
             ButtonImageAdjust.IsEnabled = false;
@@ -378,11 +419,67 @@ public sealed partial class MainWindow : Window
             ButtonImageZoomFull.IsEnabled = false;
         }
     }
+    public void SetOffset(float x, float y)
+    {
+        OffsetX = (int)x;
+        OffsetY = (int)y;
+        ImageView.Invalidate();
+    }
+    private void ImageView_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        var delta = e.GetCurrentPoint(ImageView).Properties.MouseWheelDelta;
+
+        float zoom = GetZoomFactor();
+
+        if (delta > 0) zoom += 0.1f;
+        else zoom -= 0.1f;
+        if (zoom < 0.1f) zoom = 0.1f;
+
+        SetZoomFactor(zoom);
+    }
+    private void ImageView_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        ScrollViewMouseDrag = true;
+        LastMousePoint = e.GetCurrentPoint(ImageView).Position;
+    }
+
+    private void ImageView_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        var pos = e.GetCurrentPoint(ImageView).Position;
+
+        if (_bitmap is CanvasBitmap bitmap)
+        {
+            int pixelX = (int)((pos.X - OffsetX) / Zoom);
+            int pixelY = (int)((pos.Y - OffsetY) / Zoom);
+
+            if (pixelX >= 0 && pixelX < bitmap.Size.Width &&
+                pixelY >= 0 && pixelY < bitmap.Size.Height)
+            {
+                // ここで画素の位置が確定！
+                // 例: ステータスバーなどに表示する
+                System.Diagnostics.Debug.WriteLine($"画素位置: X={pixelX}, Y={pixelY}");
+            }
+        }
+
+        if (ScrollViewMouseDrag)
+        {
+            OffsetX += (int)(pos.X - LastMousePoint.X);
+            OffsetY += (int)(pos.Y - LastMousePoint.Y);
+            LastMousePoint = pos;
+
+            ImageView.Invalidate();
+        }
+    }
+
+    private void ImageView_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        ScrollViewMouseDrag = false;
+    }
 
     private void SplitViewContainer_PaneOpening(SplitView sender, object args)
     {
         Context.Instance().UpdateFileInfo();
-        ScrollView.Focus(FocusState.Programmatic);
+        //ScrollView.Focus(FocusState.Programmatic);
     }
 
     private void Grid_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -485,4 +582,25 @@ public sealed partial class MainWindow : Window
         RandomAccessStreamReference clipboardImage = await clipboard.GetBitmapAsync();
         Context.Instance().LoadImageFromBuffer(clipboardImage);
     }
+
+    private void CanvasView_Draw(CanvasControl sender, CanvasDrawEventArgs args)
+    {
+        if (_bitmap == null)
+            return;
+
+        //float Zoom = (float)1.0;// ScrollView.ZoomFactor;
+
+        args.DrawingSession.DrawImage(
+            _bitmap,
+            new Rect(OffsetX, OffsetY, _bitmap.SizeInPixels.Width * Zoom, _bitmap.SizeInPixels.Height * Zoom),
+            new Rect(0, 0, _bitmap.SizeInPixels.Width, _bitmap.SizeInPixels.Height),
+            1.0f,
+            CanvasImageInterpolation.NearestNeighbor
+        );
+    }
+    public void RedrawView()
+    {
+        ImageView.Invalidate();
+    }
+
 }

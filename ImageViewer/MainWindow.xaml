@@ -6,7 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:ImageViewer.Controls"
     xmlns:helpers="using:ImageViewer.Helpers"
-    xmlns:cc="using:CommunityToolkit.WinUI.Controls"
+    xmlns:cc="using:CommunityToolkit.WinUI.Controls" xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
     mc:Ignorable="d" Closed="Window_Closed">
     <Page x:Name="MainPage">
         <Grid SizeChanged="Grid_SizeChanged" x:Name="MainLayout" KeyboardAcceleratorPlacementMode="Hidden">
@@ -90,26 +90,11 @@
                             <TextBlock Foreground="{ ThemeResource TextFillColorSecondary }" TextAlignment="Center" Margin="0,0,0,5" x:Name="GlobalErrorMessageFileName" x:FieldModifier="public"></TextBlock>
                             <TextBlock Foreground="{ ThemeResource TextFillColorTertiary }" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Text="{x:Bind helpers:Culture.GetString('SYSTEM_LOADING_ERROR')}"></TextBlock>
                         </StackPanel>
-                        <ScrollViewer
-                                PointerMoved="ScrollView_PointerMoved"
-                                PointerExited="ScrollView_PointerExited"
-                                PointerPressed="ScrollView_PointerPressed"
-                                PointerReleased="ScrollView_PointerReleased"
-                                PointerWheelChanged="ScrollView_PointerWheelChanged"
-                                ViewChanged="ScrollView_ViewChanged"
-                                IsScrollInertiaEnabled="True"
-                                IsZoomInertiaEnabled="True"
-                                x:FieldModifier="public"
-                                x:Name="ScrollView"
-                                ZoomMode="Enabled"
-                                VerticalScrollMode="Disabled"
-                                HorizontalScrollMode="Disabled"
-                                HorizontalScrollBarVisibility="Hidden"
-                                VerticalScrollBarVisibility="Hidden"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center">
-                            <Image x:Name="ImageView" Stretch="None" x:FieldModifier="public" />
-                        </ScrollViewer>
+                        <canvas:CanvasControl x:Name="ImageView" Draw="CanvasView_Draw"
+                                              PointerWheelChanged="ImageView_PointerWheelChanged"
+                                              PointerPressed="ImageView_PointerPressed"
+                                              PointerReleased="ImageView_PointerReleased"
+                                              PointerMoved="ImageView_PointerMoved"/>
                     </controls:CursorGrid>
                     <SplitView BorderThickness="0" x:Name="ImageCropperContainer" x:FieldModifier="public" Visibility="Collapsed" PanePlacement="Right" DisplayMode="Inline">
                         <SplitView.Pane>
