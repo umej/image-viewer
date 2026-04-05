@@ -161,6 +161,7 @@ public sealed partial class MainWindow : Window
 
     private void ButtonFullsize_Click(object sender, RoutedEventArgs e)
     {
+        SetZoomFactor(1);
         //ScrollView.ChangeView(0, 0, 1);
     }
 
